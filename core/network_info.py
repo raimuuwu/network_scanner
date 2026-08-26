@@ -1,5 +1,46 @@
 import socket
+import subprocess
 import psutil
+
+def get_active_interface():
+    try:
+        cmd = ["ip", "route", "get", "8.8.8.8"]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
+        if result.returncode == 0:
+            words = result.stdout.split()
+            if "dev" in words:
+                return words[words.index("dev") + 1]
+    except Exception:
+        pass
+    return None
+
+def get_wifi_signal(interface):
+    if not interface or not interface.startswith("w"):
+        return "Wired (Ethernet)"
+
+    try:
+        cmd = ["nmcli", "-t", "-f", "IN-USE,SIGNAL", "dev", "wifi"]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if line.startswith("*"):
+                    return f"{line.split(':')[1]}%"
+    except Exception:
+        pass
+    return "N/A"
+
+def get_latency(target="8.8.8.8"):
+    try:
+        cmd = ["ping", "-c", "3", "-W", "1", target]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if "rtt" in line or "round-trip" in line:
+                    stats = line.split("=")[1].strip().split("/")[1]
+                    return f"{stats} ms"
+    except Exception:
+        pass
+    return "N/A"
 
 def get_network_info():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -7,26 +48,25 @@ def get_network_info():
     my_ip = s.getsockname()[0]
     s.close()
 
-    target_interface = None
+    interface = get_active_interface()
     netmask = None
     mac_address = None
 
-    for interface, addresses in psutil.net_if_addrs().items():
-        for addr in addresses:
-            if addr.family == socket.AF_INET and addr.address == my_ip:
-                target_interface = interface
+    if interface in psutil.net_if_addrs():
+        for addr in psutil.net_if_addrs()[interface]:
+            if addr.family == socket.AF_INET:
                 netmask = addr.netmask
-                break
-
-    if target_interface:
-        for addr in psutil.net_if_addrs()[target_interface]:
-            if addr.family == psutil.AF_LINK:
+            elif addr.family == psutil.AF_LINK:
                 mac_address = addr.address
-                break
-    
-    return{
-        "interface": target_interface,
+
+    wifi_signal = get_wifi_signal(interface)
+    latency = get_latency()
+
+    return {
+        "interface": interface,
         "ip": my_ip,
         "mask": netmask,
-        "mac": mac_address
+        "mac": mac_address,
+        "wifi_signal": wifi_signal,
+        "latency": latency,
     }

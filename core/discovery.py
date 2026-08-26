@@ -26,6 +26,12 @@ def ping_icmp(ip):
     result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return ip, (result.returncode == 0)
 
+def get_hostname(ip):
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except (socket.herror, socket.gaierror, TimeoutError):
+        return "Unknown"
+
 def scan_network(ip_list):
     active_hosts = []
 
@@ -37,7 +43,10 @@ def scan_network(ip_list):
         for future in as_completed(futures):
             ip, is_alive = future.result()
             if is_alive:
-                print(f"Active host: {ip}")
-                active_hosts.append(ip)
+                hostname = get_hostname(ip)
+                print(f"[+] Active host: {ip} ({hostname})")
+
+                active_hosts.append({"ip": ip, "hostname": hostname})
 
     return active_hosts
+

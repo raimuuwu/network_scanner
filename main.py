@@ -18,22 +18,26 @@ def main():
         info = get_network_info()
 
         print("---")
-        print(f"Interface : {info['interface']}")
-        print(f"IP Address: {info['ip']}")
-        print(f"Mask      : {info['mask']}")
-        print(f"MAC       : {info['mac']}")
+        print(f"Interface  : {info['interface']}")
+        print(f"IP Address : {info['ip']}")
+        print(f"Mask       : {info['mask']}")
+        print(f"MAC        : {info['mac']}")
+        print(f"Wifi signal: {info['wifi_signal']}")
+        print(f"Latency    : {info['latency']}")
 
     elif args.scan:
-        print("Scanning local network...")
-        info = get_network_info()
-        hosts_to_scan = generate_subnet_ips(info["ip"], info["mask"])
+            print("[*] Scanning local network...")
+            info = get_network_info()
+            hosts_to_scan = generate_subnet_ips(info["ip"], info["mask"])
 
-        active_hosts = scan_network(hosts_to_scan)
+            active_hosts = scan_network(hosts_to_scan)
+            print(f"\n{'IP ADDRESS':<18} | {'HOSTNAME'}")
+            print("-" * 46)
 
-        print("ACTIVE HOSTS:")
-        for host in active_hosts:
-            print(f" -> {host}")
-        print(f"Detected: {len(active_hosts)} active hosts.\n")
+            for host in active_hosts:
+                print(f"{host['ip']:<18} | {host['hostname']}")
+
+            print(f"Total detected: {len(active_hosts)} active hosts.\n")
 
     else:
         parser.print_help()
