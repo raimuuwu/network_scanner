@@ -2,42 +2,81 @@ import socket
 import subprocess
 import psutil
 
+import platform
+
 def get_active_interface():
-    try:
-        cmd = ["ip", "route", "get", "8.8.8.8"]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
-        if result.returncode == 0:
-            words = result.stdout.split()
-            if "dev" in words:
-                return words[words.index("dev") + 1]
-    except Exception:
-        pass
-    return None
-
-def get_wifi_signal(interface):
-    if not interface or not interface.startswith("w"):
-        return "Wired (Ethernet)"
+    system = platform.system()
+    if system == "Linux":
+        try:
+            cmd = ["ip", "route", "get", "8.8.8.8"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                words = result.stdout.split()
+                if "dev" in words:
+                    return words[words.index("dev") + 1]
+        except Exception:
+            pass
 
     try:
-        cmd = ["nmcli", "-t", "-f", "IN-USE,SIGNAL", "dev", "wifi"]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
-        if result.returncode == 0:
-            for line in result.stdout.splitlines():
-                if line.startswith("*"):
-                    return f"{line.split(':')[1]}%"
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        my_ip = s.getsockname()[0]
+        s.close()
+
+        for iface, addrs in psutil.net_if_addrs().items():
+            for addr in addrs:
+                if addr.family == socket.AF_INET and addr.address == my_ip:
+                    return iface
     except Exception:
         pass
     return "N/A"
 
+def get_wifi_signal(interface):
+    system = platform.system()
+    if system == "Windows":
+        try:
+            cmd = ["netsh", "wlan", "show", "interfaces"]
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=2)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if "Signal" in line or "Sygnał" in line:
+                        return line.split(":")[1].strip()
+        except Exception:
+            pass
+        return "N/A"
+
+    else:
+        if not interface or not interface.startswith("w"):
+            return "Wired (Ethernet)"
+        try:
+            cmd = ["nmcli", "-t", "-f", "IN-USE,SIGNAL", "dev", "wifi"]
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=2)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if line.startswith("*"):
+                        return f"{line.split(':')[1]}%"
+        except Exception:
+            pass
+        return "N/A"
+
 def get_latency(target="8.8.8.8"):
-    try:
+    system = platform.system()
+    if system == "Windows":
+        cmd = ["ping", "-n", "3", "-w", "1000", target]
+    else:
         cmd = ["ping", "-c", "3", "-W", "1", target]
+
+    try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             for line in result.stdout.splitlines():
                 if "rtt" in line or "round-trip" in line:
-                    stats = line.split("=")[1].strip().split("/")[1]
-                    return f"{stats} ms"
+                    return f"{line.split('=')[1].strip().split('/')[1]} ms"
+                elif "Average" in line or "Średni" in line:
+                    avg = line.split("=")[-1].strip().replace("ms", "")
+                    return f"{avg} ms"
     except Exception:
         pass
     return "N/A"
