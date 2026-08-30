@@ -1,5 +1,6 @@
 # network_scanner
 Simple network scanner CLI
+Works on Linux and Windows
 
 ## Features:
 - Displays network info
