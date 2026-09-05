@@ -13,3 +13,6 @@ Works on Linux and Windows
 
 ## Issues
 When using scanner functionality on Windows there are multiple "ghost answers" from addresses that are not occupied. I might fix that later.
+
+## Acknowledgments
+This project was developed as an educational portfolio piece to practice network analysis, object-oriented programming, and Python best practices. I want to explicitly acknowledge the assistance of AI, which acted as technical mentor and architectural guide throughout the entire development of this program.
